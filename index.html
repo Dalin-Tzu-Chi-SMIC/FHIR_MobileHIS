@@ -3,56 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Level Hospital App</title>
+    <title>Smart Hospital System</title>
     <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; padding-bottom: 50px; }
         
         /* Navigation Bar */
         .navbar { background: #003366; color: white; padding: 15px; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-title { font-size: 18px; font-weight: bold; flex-grow: 1; }
         .breadcrumb { font-size: 14px; color: #cbd5e0; margin-top: 5px; }
-        .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 10px; display: none; }
+        .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 10px; display: none; font-size: 16px; }
         .back-btn:hover { background: rgba(255,255,255,0.3); }
 
         /* Container */
         .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
 
-        /* Card Style */
+        /* --- Level 1 & 2 Styles (Cards) --- */
         .card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; border-left: 5px solid transparent; }
         .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .card.location { border-left-color: #10b981; } /* Green for Location */
-        .card.patient { border-left-color: #3b82f6; } /* Blue for Patient */
-        
+        .card.location { border-left-color: #10b981; } 
+        .card.patient { border-left-color: #3b82f6; }
         .card-title { font-size: 1.1em; font-weight: bold; color: #333; margin-bottom: 5px; }
         .card-sub { color: #666; font-size: 0.9em; }
 
-        /* Input Area */
         .input-group { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .input-group input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         .input-group button { padding: 10px 20px; background: #003366; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
 
-        /* Views */
-        .view-section { display: none; }
-        .view-section.active { display: block; }
-
-        /* Existing Dashboard Styles */
-        .dashboard-section { background: white; margin-bottom: 1px; }
+        /* --- Level 3 Styles (Dashboard) --- */
+        .dash-section { background: white; margin-bottom: 1px; transition: all 0.3s; }
         .accordion-header { padding: 15px; display: flex; align-items: center; cursor: pointer; border-bottom: 1px solid #eee; }
         .accordion-header:hover { background-color: #f9f9f9; }
+        
+        .icon { width: 30px; text-align: center; margin-right: 10px; font-size: 20px; }
+        .title { flex-grow: 1; font-size: 16px; color: #334e68; font-weight: 500; }
+        .arrow { color: #999; font-size: 12px; }
+
+        /* States */
+        .dash-section.no-data .accordion-header { opacity: 0.6; background-color: #f8f8f8; filter: grayscale(100%); }
+        .dash-section.no-data .title::after { content: ' (查無資料)'; font-size: 0.8em; font-weight: normal; margin-left: 5px; color: #999; }
+        .dash-section.error-state .title { color: #d9534f; }
+        .dash-section.error-state .title::after { content: ' (讀取錯誤)'; }
+        
         .content { display: none; padding: 15px; background-color: #fafafa; border-bottom: 1px solid #eee; }
         .content.show { display: block; }
-        .dashboard-data-row { display: flex; justify-content: space-between; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
-        
+
+        /* Content Data Cards */
+        .data-card { background: #fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #003366; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .label { color: #888; font-size: 0.9em; }
+        .val { font-weight: 500; color: #333; text-align: right; word-break: break-word; max-width: 70%; }
+        .sub-items { margin-top: 8px; border-top: 1px dashed #eee; padding-top: 5px; }
+        .sub-item-row { display: flex; justify-content: space-between; padding: 2px 0; }
+
+        /* Utils */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
         .loading { text-align: center; color: #666; padding: 20px; }
         .error { color: #e53e3e; text-align: center; padding: 10px; }
-        .empty { text-align: center; color: #999; padding: 20px; font-style: italic; }
+        .empty { text-align: center; color: #aaa; padding: 15px; font-style: italic; }
     </style>
 </head>
 <body>
 
     <div class="navbar">
-        <button id="btn-back" class="back-btn" onclick="goBack()">❮</button>
+        <button id="btn-back" class="back-btn" onclick="goBack()">❮ 返回</button>
         <div>
             <div class="nav-title" id="nav-title">Smart Hospital</div>
             <div class="breadcrumb" id="breadcrumb">首頁</div>
@@ -70,7 +85,7 @@
         </div>
 
         <div id="view-patients" class="view-section">
-            <h3 id="current-location-name" style="color:#003366; margin-bottom:15px;"></h3>
+            <h3 id="current-location-name" style="color:#003366; margin-bottom:15px; border-bottom:2px solid #003366; padding-bottom:10px;"></h3>
             <div id="patient-list"></div>
         </div>
 
@@ -82,44 +97,47 @@
 
     <script>
         let fhirClient = null;
-        let navigationStack = []; // To handle "Back" button logic
+        let navigationStack = []; 
         let currentOrgId = "";
         let currentLocation = null;
+
+        // Definition of Dashboard Sections
+        const dashboardSections = [
+            { id: "medication", icon: "💊", title: "用藥紀錄", loader: loadMedications },
+            { id: "nursing",    icon: "👩‍⚕️", title: "護理紀錄", loader: loadNursing },
+            { id: "records",    icon: "🏥", title: "病歷紀錄", loader: loadRecords },
+            { id: "lab",        icon: "🩸", title: "檢驗報告", loader: loadLab },
+            { id: "exam",       icon: "🔬", title: "檢查報告", loader: loadExam },
+            { id: "surgery",    icon: "🔪", title: "手術紀錄", loader: loadSurgery },
+            { id: "consult",    icon: "🩺", title: "會診紀錄", loader: loadConsult },
+            { id: "vs",         icon: "💬", title: "VS comment", loader: loadVSComment }
+        ];
 
         // Initialize Client
         FHIR.oauth2.ready().then(client => {
             fhirClient = client;
             console.log("FHIR Client Ready");
-            // Auto-load if preferred, or wait for user to click button
         }).catch(console.error);
 
 
         // --- Navigation Logic ---
 
         function navigateTo(viewId, title, breadcrumbText) {
-            // Hide all views
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            // Show target
             document.getElementById(viewId).classList.add('active');
-            
-            // Update Header
             document.getElementById('nav-title').innerText = title;
             document.getElementById('breadcrumb').innerText = breadcrumbText;
 
-            // Manage Stack
             if (viewId === 'view-locations') {
                 navigationStack = [];
                 document.getElementById('btn-back').style.display = 'none';
             } else {
-                navigationStack.push(viewId);
                 document.getElementById('btn-back').style.display = 'inline-block';
             }
         }
 
         function goBack() {
-            // Simple logic: If in dashboard, go to patient list. If in patient list, go to locations.
             const current = document.querySelector('.view-section.active').id;
-            
             if (current === 'view-dashboard') {
                 navigateTo('view-patients', currentLocation.name, `首頁 > ${currentLocation.name}`);
             } else if (current === 'view-patients') {
@@ -139,15 +157,12 @@
             listDiv.innerHTML = '<div class="loading">搜尋護理站中...</div>';
 
             try {
-                // Query: Location belongs to Organization
-                // Note: Some sandboxes use 'organization', some use 'managingOrganization'
                 const q = `Location?organization=${orgId}&_sort=name`;
                 const data = await fhirClient.request(q);
                 
                 listDiv.innerHTML = '';
-
                 if (!data.entry || data.entry.length === 0) {
-                    listDiv.innerHTML = '<div class="empty">找不到此院所的護理站資料 (請確認 Mock Data 是否建立 Location)</div>';
+                    listDiv.innerHTML = '<div class="empty">找不到此院所的護理站資料</div>';
                     return;
                 }
 
@@ -156,20 +171,19 @@
                     const el = document.createElement('div');
                     el.className = 'card location';
                     el.innerHTML = `
-                        <div class="card-title">🏥 ${loc.name || 'Unknown Location'}</div>
-                        <div class="card-sub">Type: ${loc.physicalType?.coding?.[0]?.display || loc.type?.[0]?.text || 'Ward'} | ID: ${loc.id}</div>
+                        <div class="card-title">🏥 ${loc.name || 'Unknown'}</div>
+                        <div class="card-sub">Type: ${loc.physicalType?.coding?.[0]?.display || 'Ward'}</div>
                     `;
                     el.onclick = () => selectLocation(loc);
                     listDiv.appendChild(el);
                 });
-
             } catch (err) {
                 listDiv.innerHTML = `<div class="error">讀取失敗: ${err.message}</div>`;
             }
         }
 
 
-        // --- Level 2: Load Patients in Location ---
+        // --- Level 2: Load Patients ---
 
         async function selectLocation(loc) {
             currentLocation = loc;
@@ -180,103 +194,227 @@
             listDiv.innerHTML = '<div class="loading">讀取病床清單中...</div>';
 
             try {
-                // Critical Query: Find Active Encounters in this Location, and include Patient
                 const q = `Encounter?location=${loc.id}&status=in-progress&_include=Encounter:subject`;
                 const data = await fhirClient.request(q);
 
                 listDiv.innerHTML = '';
-                
                 if (!data.entry || data.entry.length === 0) {
                     listDiv.innerHTML = '<div class="empty">此護理站目前沒有住院病人</div>';
                     return;
                 }
 
-                // Process Bundle to map Patient Resource
                 const patients = {};
                 data.entry.forEach(e => {
-                    if (e.resource.resourceType === 'Patient') {
-                        patients[`Patient/${e.resource.id}`] = e.resource;
-                    }
+                    if (e.resource.resourceType === 'Patient') patients[`Patient/${e.resource.id}`] = e.resource;
                 });
 
-                // Render Encounters (which act as the "Bed" slot)
                 data.entry.forEach(e => {
                     if (e.resource.resourceType === 'Encounter') {
                         const enc = e.resource;
-                        const patRef = enc.subject?.reference; // "Patient/123"
-                        const pt = patients[patRef];
-
+                        const pt = patients[enc.subject?.reference];
                         if (pt) {
                             const name = pt.name?.[0]?.text || 'Unknown';
                             const el = document.createElement('div');
                             el.className = 'card patient';
                             el.innerHTML = `
                                 <div class="card-title">👤 ${name}</div>
-                                <div class="card-sub">ID: ${pt.id} | 入院日: ${enc.period?.start?.split('T')[0] || '-'}</div>
+                                <div class="card-sub">ID: ${pt.id} | 入院: ${enc.period?.start?.split('T')[0] || '-'}</div>
                             `;
                             el.onclick = () => selectPatient(pt);
                             listDiv.appendChild(el);
                         }
                     }
                 });
-
             } catch (err) {
                 listDiv.innerHTML = `<div class="error">讀取失敗: ${err.message}</div>`;
             }
         }
 
 
-        // --- Level 3: Patient Dashboard (Reused Logic) ---
+        // --- Level 3: Dashboard & All Features ---
 
         function selectPatient(pt) {
-            navigateTo('view-dashboard', pt.name?.[0]?.text, `首頁 > ${currentLocation.name} > ${pt.name?.[0]?.text}`);
+            const ptName = pt.name?.[0]?.text || "Unknown";
+            navigateTo('view-dashboard', ptName, `首頁 > ${currentLocation.name} > ${ptName}`);
             
-            // Re-render the dashboard structure
             const container = document.getElementById('dashboard-content');
-            container.innerHTML = `
-                <div class="dashboard-section">
-                    <div class="accordion-header" onclick="toggleDash('medication')">
-                        <div style="flex-grow:1">💊 用藥紀錄</div><div id="arrow-medication">▼</div>
-                    </div>
-                    <div class="content" id="content-medication">Loading...</div>
-                </div>
-                `;
+            container.innerHTML = ''; // Clear previous
 
-            // Trigger Data Load
-            loadMedications(pt.id, 'content-medication');
+            // Render ALL sections
+            dashboardSections.forEach(sec => {
+                const html = `
+                    <div class="dash-section" id="section-${sec.id}">
+                        <div class="accordion-header" onclick="toggleDash('${sec.id}')">
+                            <div class="icon">${sec.icon}</div>
+                            <div class="title">${sec.title}</div>
+                            <div class="arrow">▼</div>
+                        </div>
+                        <div class="content" id="content-${sec.id}">
+                            <div class="loading">載入中...</div>
+                        </div>
+                    </div>`;
+                container.innerHTML += html;
+                
+                // Trigger Load for each section
+                sec.loader(pt.id, `content-${sec.id}`, `section-${sec.id}`);
+            });
         }
 
         function toggleDash(id) {
-            const el = document.getElementById(`content-${id}`);
-            el.classList.toggle('show');
+            const content = document.getElementById(`content-${id}`);
+            content.classList.toggle('show');
         }
 
-        // --- Data Loaders (Simplified from previous step) ---
+        function updateUIState(wrapperId, contentId, html, hasData, isError = false) {
+            const wrapper = document.getElementById(wrapperId);
+            const content = document.getElementById(contentId);
+            
+            content.innerHTML = html;
+            wrapper.className = "dash-section"; // Reset
 
-        async function loadMedications(ptId, divId) {
+            if (isError) {
+                wrapper.classList.add("error-state");
+            } else if (!hasData) {
+                wrapper.classList.add("no-data");
+                content.innerHTML = '<div class="empty">查無資料</div>';
+            } else {
+                // Normal state
+            }
+        }
+
+
+        // --- Loader Functions (Full Set) ---
+
+        async function loadMedications(ptId, divId, wrapId) {
             try {
                 const q = `MedicationRequest?patient=${ptId}&_sort=-date`;
                 const data = await fhirClient.request(q);
                 const list = data.entry || [];
                 
-                if (list.length === 0) {
-                    document.getElementById(divId).innerHTML = '<div class="empty">無用藥紀錄</div>';
-                    return;
-                }
-
                 const html = list.map(e => {
                     const r = e.resource;
-                    const d = r.dosageInstruction?.[0];
+                    const dosage = r.dosageInstruction?.[0] || {};
+                    const type = dosage.asNeededBoolean ? "PRN" : "常規";
                     return `
-                        <div class="dashboard-data-row">
-                            <b>${r.medicationCodeableConcept?.text}</b>
-                            <span>${d?.timing?.code?.text || '-'}</span>
-                        </div>`;
+                    <div class="data-card">
+                        <div class="data-row"><b style="color:#0056b3">${r.medicationCodeableConcept?.text || 'Drug'}</b> <span>${type}</span></div>
+                        <div class="label">${r.authoredOn || '-'} | ${dosage.timing?.code?.text || '-'} | ${dosage.doseAndRate?.[0]?.doseQuantity?.value || '-'}</div>
+                    </div>`;
                 }).join('');
-                document.getElementById(divId).innerHTML = html;
-            } catch (e) {
-                document.getElementById(divId).innerHTML = `<div class="error">${e.message}</div>`;
-            }
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadNursing(ptId, divId, wrapId) {
+            try {
+                const q = `Observation?patient=${ptId}&category=nursing&_sort=-date`;
+                const data = await fhirClient.request(q);
+                const list = data.entry || [];
+                
+                const html = list.map(e => `
+                    <div class="data-card">
+                        <div class="data-row"><b>${e.resource.effectiveDateTime?.split('T')[0]}</b> <span>${e.resource.code?.text}</span></div>
+                        <div style="margin-top:5px; color:#555;">${e.resource.valueString || '-'}</div>
+                    </div>`).join('');
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadRecords(ptId, divId, wrapId) {
+            try {
+                const q = `Composition?patient=${ptId}&_sort=-date`;
+                const data = await fhirClient.request(q);
+                const list = data.entry || [];
+                const html = list.map(e => `
+                    <div class="data-card">
+                        <div class="data-row"><b>${e.resource.type?.text}</b> <span>${e.resource.date?.split('T')[0]}</span></div>
+                    </div>`).join('');
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadLab(ptId, divId, wrapId) {
+            await loadDiagReport(ptId, divId, wrapId, "LAB");
+        }
+
+        async function loadExam(ptId, divId, wrapId) {
+            await loadDiagReport(ptId, divId, wrapId, "RAD");
+        }
+
+        // Shared function for Lab & Exam
+        async function loadDiagReport(ptId, divId, wrapId, cat) {
+            try {
+                const q = `DiagnosticReport?patient=${ptId}&category=${cat}&_sort=-date&_include=DiagnosticReport:result`;
+                const data = await fhirClient.request(q);
+                
+                // Index observations
+                const resources = {};
+                if(data.entry) data.entry.forEach(e => resources[e.resource.resourceType + "/" + e.resource.id] = e.resource);
+                
+                const reports = (data.entry || []).filter(e => e.resource.resourceType === 'DiagnosticReport');
+
+                const html = reports.map(e => {
+                    const r = e.resource;
+                    const itemsHtml = (r.result || []).map(ref => {
+                        const obs = resources[ref.reference];
+                        const val = obs ? (obs.valueQuantity ? `${obs.valueQuantity.value} ${obs.valueQuantity.unit}` : obs.valueString) : '-';
+                        return `<div class="sub-item-row"><span class="label">${obs?.code?.text || 'Item'}</span><span class="val">${val}</span></div>`;
+                    }).join('');
+                    
+                    return `
+                    <div class="data-card">
+                        <div class="data-row"><b>${r.code?.text}</b> <span>${r.effectiveDateTime?.split('T')[0]}</span></div>
+                        <div class="sub-items">${itemsHtml}</div>
+                    </div>`;
+                }).join('');
+                updateUIState(wrapId, divId, html, reports.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadSurgery(ptId, divId, wrapId) {
+            try {
+                const q = `Procedure?patient=${ptId}&category=surgical&_sort=-date`;
+                const data = await fhirClient.request(q);
+                const list = data.entry || [];
+                const html = list.map(e => `
+                    <div class="data-card">
+                        <div class="data-row"><b>${e.resource.code?.text}</b> <span>${e.resource.performedDateTime?.split('T')[0]}</span></div>
+                        <div class="label">Dr. ${e.resource.performer?.[0]?.actor?.display || '-'}</div>
+                    </div>`).join('');
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadConsult(ptId, divId, wrapId) {
+            try {
+                const q = `ServiceRequest?patient=${ptId}&category=consult&_sort=-date`;
+                const data = await fhirClient.request(q);
+                const list = data.entry || [];
+                const html = list.map(e => `
+                    <div class="data-card">
+                        <div class="data-row"><b>${e.resource.performerType?.text || 'Consult'}</b> <span>${e.resource.authoredOn?.split('T')[0]}</span></div>
+                        <div class="label">Reason: ${e.resource.reasonCode?.[0]?.text || '-'}</div>
+                    </div>`).join('');
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
+        }
+
+        async function loadVSComment(ptId, divId, wrapId) {
+            try {
+                // Example LOINC for progress note
+                const q = `Composition?patient=${ptId}&type=http://loinc.org|11506-3&_sort=-date`;
+                const data = await fhirClient.request(q);
+                const list = data.entry || [];
+                const html = list.map(e => {
+                    const sectionText = e.resource.section?.[0]?.text?.div?.replace(/<[^>]*>?/gm, '') || "";
+                    return `
+                    <div class="data-card">
+                        <div class="data-row"><b>VS Note</b> <span>${e.resource.date?.split('T')[0]}</span></div>
+                        <div style="margin-top:5px; color:#555;">${sectionText}</div>
+                    </div>`;
+                }).join('');
+                updateUIState(wrapId, divId, html, list.length > 0);
+            } catch (e) { updateUIState(wrapId, divId, e.message, false, true); }
         }
 
     </script>
