@@ -31,12 +31,13 @@
         .input-group input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         .input-group button { padding: 10px 20px; background: #003366; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
 
-        /* --- NEW: Category Selection Buttons --- */
+        /* Category Selection */
         .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .cat-btn { background: white; padding: 30px 20px; border-radius: 12px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s; border: 2px solid transparent; }
         .cat-btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #003366; }
         .cat-icon { font-size: 40px; margin-bottom: 10px; display: block; }
         .cat-text { font-size: 18px; font-weight: bold; color: #003366; }
+        .cat-count { font-size: 12px; color: #888; margin-top: 5px; display: block; }
 
         /* Dashboard Sections */
         .dash-section { background: white; margin-bottom: 1px; transition: all 0.3s; }
@@ -95,6 +96,7 @@
                 <input type="text" id="input-org-id" value="669597" placeholder="Organization ID">
                 <button onclick="confirmOrg()">確定</button>
             </div>
+            <div id="org-loading" class="loading" style="display:none">讀取醫院資料中 (可能需要幾秒鐘)...</div>
         </div>
 
         <div id="view-category" class="view-section">
@@ -103,10 +105,12 @@
                 <div class="cat-btn" onclick="filterLocations('dept')">
                     <span class="cat-icon">🏥</span>
                     <span class="cat-text">科別查詢</span>
+                    <span class="cat-count" id="count-dept">Loading...</span>
                 </div>
                 <div class="cat-btn" onclick="filterLocations('ward')">
                     <span class="cat-icon">👩‍⚕️</span>
                     <span class="cat-text">護理站查詢</span>
+                    <span class="cat-count" id="count-ward">Loading...</span>
                 </div>
             </div>
         </div>
@@ -142,7 +146,7 @@
         let currentLocation = null;
         let currentPatientResources = {}; 
         
-        // Cache for locations to avoid re-fetching
+        // Cache
         let allLocationsCache = [];
 
         const dashboardSections = [
@@ -168,9 +172,8 @@
             document.getElementById('nav-title').innerText = title;
             document.getElementById('breadcrumb').innerText = breadcrumbText;
             
-            // Back button visibility
             const btn = document.getElementById('btn-back');
-            if (viewId === 'view-org' || viewId === 'view-category') btn.style.display = 'none'; // Hide on Org or Category select
+            if (viewId === 'view-org' || viewId === 'view-category') btn.style.display = 'none';
             else btn.style.display = 'inline-block';
         }
 
@@ -189,7 +192,7 @@
             else if (current === 'view-category') {
                 navigateTo('view-org', 'Smart Hospital', '首頁');
                 currentOrgId = "";
-                allLocationsCache = []; // Clear cache
+                allLocationsCache = [];
             }
         }
 
@@ -199,24 +202,47 @@
             if(!orgId) return alert("請輸入院所代碼");
             currentOrgId = orgId;
             
-            // Pre-fetch locations to check if org exists/has data
+            document.getElementById('org-loading').style.display = 'block';
+
             try {
-                // Show simple loading state on button text if needed, or just await
-                const q = `Location?organization=${orgId}&_sort=name`;
+                // FIXED: Added _count=300 to fetch ALL locations, preventing pagination issues
+                const q = `Location?organization=${orgId}&_sort=name&_count=300`;
                 const data = await fhirClient.request(q);
                 allLocationsCache = (data.entry || []).map(e => e.resource);
                 
+                document.getElementById('org-loading').style.display = 'none';
+
                 if(allLocationsCache.length === 0) {
-                    alert("此代碼查無 Location 資料，請確認 Mock Data 是否已匯入");
+                    alert("查無 Location 資料，請確認是否已匯入假資料");
                     return;
                 }
+                
+                updateCategoryCounts();
                 navigateTo('view-category', 'Smart Hospital', `首頁 > ${orgId}`);
             } catch (err) {
+                document.getElementById('org-loading').style.display = 'none';
                 alert("讀取失敗: " + err.message);
             }
         }
 
-        // --- Step 2: Filter Locations (Ward vs Dept) ---
+        function updateCategoryCounts() {
+            const wards = allLocationsCache.filter(l => isWard(l));
+            const depts = allLocationsCache.filter(l => !isWard(l));
+            document.getElementById('count-ward').innerText = `${wards.length} 個單位`;
+            document.getElementById('count-dept').innerText = `${depts.length} 個科別`;
+        }
+
+        // Improved Logic: Detect if it's a Ward or Dept
+        function isWard(loc) {
+            const name = (loc.name || "").toLowerCase();
+            // It's a ward if it contains "護理站", "Ward", "ICU", "Room", or usually starts with a Number (e.g. 7A)
+            if (name.includes("護理站") || name.includes("ward") || name.includes("icu") || name.includes("病房")) return true;
+            // Additional check: Does it look like "7A", "5B"?
+            if (/^[0-9]+[a-zA-Z]/.test(name)) return true;
+            return false;
+        }
+
+        // --- Step 2: Filter Locations ---
         function filterLocations(type) {
             navigateTo('view-locations', type === 'ward' ? '護理站清單' : '科別清單', `首頁 > ${currentOrgId} > ${type==='ward'?'護理站':'科別'}`);
             const listDiv = document.getElementById('location-list');
@@ -225,20 +251,12 @@
             listDiv.innerHTML = '';
             titleDiv.innerText = type === 'ward' ? '👩‍⚕️ 護理站清單' : '🏥 科別清單';
 
-            // Logic to distinguish Ward vs Dept based on your mock data naming convention
             const filtered = allLocationsCache.filter(loc => {
-                const name = loc.name || "";
-                if (type === 'ward') {
-                    // Wards typically have "護理站" in name OR are explicitly marked
-                    return name.includes("護理站") || name.includes("Ward");
-                } else {
-                    // Departments usually don't have "護理站"
-                    return !name.includes("護理站") && !name.includes("Ward");
-                }
+                return type === 'ward' ? isWard(loc) : !isWard(loc);
             });
 
             if (filtered.length === 0) {
-                listDiv.innerHTML = '<div class="empty">此類別無資料</div>';
+                listDiv.innerHTML = '<div class="empty">此類別無資料 (請確認是否只匯入了部分資料)</div>';
                 return;
             }
 
@@ -263,7 +281,7 @@
                 const q = `Encounter?location=${loc.id}&status=in-progress&_include=Encounter:subject`;
                 const data = await fhirClient.request(q);
                 listDiv.innerHTML = '';
-                if (!data.entry || data.entry.length === 0) return listDiv.innerHTML = '<div class="empty">無住院病人</div>';
+                if (!data.entry || data.entry.length === 0) return listDiv.innerHTML = '<div class="empty">目前無病人 (Empty)</div>';
                 
                 const patients = {};
                 data.entry.forEach(e => { if (e.resource.resourceType === 'Patient') patients[`Patient/${e.resource.id}`] = e.resource; });
@@ -303,7 +321,7 @@
         }
         function toggleDash(id) { document.getElementById(`content-${id}`).classList.toggle('show'); }
         
-        // --- Modal & Loaders (Same as before) ---
+        // --- Modal & Loaders ---
         function openModal(title, htmlContent) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-body').innerHTML = htmlContent;
@@ -422,4 +440,3 @@
         }
     </script>
 </body>
-</html>
