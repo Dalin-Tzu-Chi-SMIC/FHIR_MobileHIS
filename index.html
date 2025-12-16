@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>行動醫療APP</title>
+    <title>Smart Hospital</title>
     <script src="https://cdn.jsdelivr.net/npm/fhirclient/build/fhir-client.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; padding-bottom: 50px; }
@@ -18,7 +18,7 @@
         /* Container */
         .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
 
-        /* Cards */
+        /* General Card Styles */
         .card { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; border-left: 5px solid transparent; }
         .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .card.location { border-left-color: #10b981; } 
@@ -26,9 +26,17 @@
         .card-title { font-size: 1.1em; font-weight: bold; color: #333; margin-bottom: 5px; }
         .card-sub { color: #666; font-size: 0.9em; }
 
+        /* Input Group */
         .input-group { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .input-group input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         .input-group button { padding: 10px 20px; background: #003366; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+
+        /* --- NEW: Category Selection Buttons --- */
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .cat-btn { background: white; padding: 30px 20px; border-radius: 12px; text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s; border: 2px solid transparent; }
+        .cat-btn:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #003366; }
+        .cat-icon { font-size: 40px; margin-bottom: 10px; display: block; }
+        .cat-text { font-size: 18px; font-weight: bold; color: #003366; }
 
         /* Dashboard Sections */
         .dash-section { background: white; margin-bottom: 1px; transition: all 0.3s; }
@@ -36,11 +44,9 @@
         .accordion-header:hover { background-color: #f9f9f9; }
         .icon { width: 30px; text-align: center; margin-right: 10px; font-size: 20px; }
         .title { flex-grow: 1; font-size: 16px; color: #334e68; font-weight: 500; }
-        
         .dash-section.no-data .accordion-header { opacity: 0.6; background-color: #f8f8f8; filter: grayscale(100%); }
         .dash-section.no-data .title::after { content: ' (查無資料)'; font-size: 0.8em; font-weight: normal; margin-left: 5px; color: #999; }
         .dash-section.error-state .title { color: #d9534f; }
-        
         .content { display: none; padding: 15px; background-color: #fafafa; border-bottom: 1px solid #eee; }
         .content.show { display: block; }
 
@@ -49,49 +55,22 @@
         .data-card:active { background: #eef; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .label { color: #888; font-size: 0.9em; }
-        
-        /* --- MODAL FIXES (Fixed centering) --- */
-        .modal-overlay { 
-            display: none; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.6); 
-            z-index: 1000; 
-            justify-content: center; /* Center Horizontal */
-            align-items: center;     /* Center Vertical */
-            padding: 20px;           /* Prevent touching edges */
-            box-sizing: border-box;
-        }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         .modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
-        
-        .modal-content { 
-            background: white; 
-            width: 90%; 
-            max-width: 600px; 
-            border-radius: 12px; /* Rounded corners all around */
-            padding: 20px; 
-            max-height: 85vh; 
-            overflow-y: auto; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3); 
-            position: relative;
-        }
-        
+        .modal-content { background: white; width: 90%; max-width: 600px; border-radius: 12px; padding: 20px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3); position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .modal-title { font-size: 1.2em; font-weight: bold; color: #003366; }
         .close-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: #888; line-height: 1; padding: 0 5px; }
-        .close-btn:hover { color: #333; }
-
+        
         .detail-row { margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px; }
         .detail-label { font-size: 0.9em; color: #888; margin-bottom: 4px; }
         .detail-val { font-size: 1.05em; color: #333; line-height: 1.5; }
         .detail-html { background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee; margin-top: 5px; overflow-x: auto; }
-
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Utils */
+        /* View Utils */
         .view-section { display: none; }
         .view-section.active { display: block; }
         .loading { text-align: center; color: #666; padding: 20px; }
@@ -110,11 +89,30 @@
     </div>
 
     <div class="container">
-        <div id="view-locations" class="view-section active">
+        
+        <div id="view-org" class="view-section active">
             <div class="input-group">
                 <input type="text" id="input-org-id" value="669597" placeholder="Organization ID">
-                <button onclick="loadLocations()">查詢護理站</button>
+                <button onclick="confirmOrg()">確定</button>
             </div>
+        </div>
+
+        <div id="view-category" class="view-section">
+            <div style="text-align:center; color:#666; margin-bottom:10px;">請選擇查詢項目</div>
+            <div class="category-grid">
+                <div class="cat-btn" onclick="filterLocations('dept')">
+                    <span class="cat-icon">🏥</span>
+                    <span class="cat-text">科別查詢</span>
+                </div>
+                <div class="cat-btn" onclick="filterLocations('ward')">
+                    <span class="cat-icon">👩‍⚕️</span>
+                    <span class="cat-text">護理站查詢</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-locations" class="view-section">
+            <h3 id="location-list-title" style="color:#003366; margin-bottom:15px; border-bottom:2px solid #003366; padding-bottom:10px;"></h3>
             <div id="location-list"></div>
         </div>
 
@@ -140,10 +138,12 @@
 
     <script>
         let fhirClient = null;
-        let navigationStack = []; 
         let currentOrgId = "";
         let currentLocation = null;
         let currentPatientResources = {}; 
+        
+        // Cache for locations to avoid re-fetching
+        let allLocationsCache = [];
 
         const dashboardSections = [
             { id: "medication", icon: "💊", title: "用藥紀錄", loader: loadMedications },
@@ -161,52 +161,98 @@
             console.log("FHIR Client Ready");
         }).catch(console.error);
 
-        // --- Navigation ---
+        // --- Navigation System ---
         function navigateTo(viewId, title, breadcrumbText) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             document.getElementById('nav-title').innerText = title;
             document.getElementById('breadcrumb').innerText = breadcrumbText;
-            document.getElementById('btn-back').style.display = viewId === 'view-locations' ? 'none' : 'inline-block';
+            
+            // Back button visibility
+            const btn = document.getElementById('btn-back');
+            if (viewId === 'view-org' || viewId === 'view-category') btn.style.display = 'none'; // Hide on Org or Category select
+            else btn.style.display = 'inline-block';
         }
 
         function goBack() {
             const current = document.querySelector('.view-section.active').id;
-            if (current === 'view-dashboard') navigateTo('view-patients', currentLocation.name, `首頁 > ${currentLocation.name}`);
-            else if (current === 'view-patients') navigateTo('view-locations', 'Smart Hospital', '首頁');
+            
+            if (current === 'view-dashboard') {
+                navigateTo('view-patients', currentLocation.name, `首頁 > ${currentLocation.name}`);
+            } 
+            else if (current === 'view-patients') {
+                navigateTo('view-locations', '地點清單', `首頁 > ${currentOrgId}`);
+            }
+            else if (current === 'view-locations') {
+                navigateTo('view-category', 'Smart Hospital', `首頁 > ${currentOrgId}`);
+            }
+            else if (current === 'view-category') {
+                navigateTo('view-org', 'Smart Hospital', '首頁');
+                currentOrgId = "";
+                allLocationsCache = []; // Clear cache
+            }
         }
 
-        // --- Modal Logic ---
-        function openModal(title, htmlContent) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-body').innerHTML = htmlContent;
-            document.getElementById('modal').classList.add('open');
-        }
-        function closeModal() {
-            document.getElementById('modal').classList.remove('open');
-        }
-
-        // --- View 1 & 2 Logic ---
-        async function loadLocations() {
+        // --- Step 1: Confirm Org ---
+        async function confirmOrg() {
             const orgId = document.getElementById('input-org-id').value;
             if(!orgId) return alert("請輸入院所代碼");
             currentOrgId = orgId;
-            const listDiv = document.getElementById('location-list');
-            listDiv.innerHTML = '<div class="loading">搜尋護理站中...</div>';
+            
+            // Pre-fetch locations to check if org exists/has data
             try {
+                // Show simple loading state on button text if needed, or just await
                 const q = `Location?organization=${orgId}&_sort=name`;
                 const data = await fhirClient.request(q);
-                listDiv.innerHTML = '';
-                if (!data.entry || data.entry.length === 0) return listDiv.innerHTML = '<div class="empty">找不到護理站</div>';
-                data.entry.forEach(e => {
-                    const el = document.createElement('div'); el.className = 'card location';
-                    el.innerHTML = `<div class="card-title">🏥 ${e.resource.name}</div><div class="card-sub">${e.resource.physicalType?.coding?.[0]?.display || 'Ward'}</div>`;
-                    el.onclick = () => selectLocation(e.resource);
-                    listDiv.appendChild(el);
-                });
-            } catch (err) { listDiv.innerHTML = `<div class="error">${err.message}</div>`; }
+                allLocationsCache = (data.entry || []).map(e => e.resource);
+                
+                if(allLocationsCache.length === 0) {
+                    alert("此代碼查無 Location 資料，請確認 Mock Data 是否已匯入");
+                    return;
+                }
+                navigateTo('view-category', 'Smart Hospital', `首頁 > ${orgId}`);
+            } catch (err) {
+                alert("讀取失敗: " + err.message);
+            }
         }
 
+        // --- Step 2: Filter Locations (Ward vs Dept) ---
+        function filterLocations(type) {
+            navigateTo('view-locations', type === 'ward' ? '護理站清單' : '科別清單', `首頁 > ${currentOrgId} > ${type==='ward'?'護理站':'科別'}`);
+            const listDiv = document.getElementById('location-list');
+            const titleDiv = document.getElementById('location-list-title');
+            
+            listDiv.innerHTML = '';
+            titleDiv.innerText = type === 'ward' ? '👩‍⚕️ 護理站清單' : '🏥 科別清單';
+
+            // Logic to distinguish Ward vs Dept based on your mock data naming convention
+            const filtered = allLocationsCache.filter(loc => {
+                const name = loc.name || "";
+                if (type === 'ward') {
+                    // Wards typically have "護理站" in name OR are explicitly marked
+                    return name.includes("護理站") || name.includes("Ward");
+                } else {
+                    // Departments usually don't have "護理站"
+                    return !name.includes("護理站") && !name.includes("Ward");
+                }
+            });
+
+            if (filtered.length === 0) {
+                listDiv.innerHTML = '<div class="empty">此類別無資料</div>';
+                return;
+            }
+
+            filtered.forEach(loc => {
+                const el = document.createElement('div'); el.className = 'card location';
+                el.innerHTML = `
+                    <div class="card-title">${type==='ward'?'🛏️':'🩺'} ${loc.name}</div>
+                    <div class="card-sub">${loc.physicalType?.coding?.[0]?.display || 'Location'}</div>`;
+                el.onclick = () => selectLocation(loc);
+                listDiv.appendChild(el);
+            });
+        }
+
+        // --- Step 3: Select Location & Load Patients ---
         async function selectLocation(loc) {
             currentLocation = loc;
             navigateTo('view-patients', loc.name, `首頁 > ${loc.name}`);
@@ -236,7 +282,7 @@
             } catch (err) { listDiv.innerHTML = `<div class="error">${err.message}</div>`; }
         }
 
-        // --- Dashboard Logic ---
+        // --- Step 4: Dashboard ---
         function selectPatient(pt) {
             currentPatientResources = {};
             const ptName = pt.name?.[0]?.text || "Unknown";
@@ -256,13 +302,20 @@
             });
         }
         function toggleDash(id) { document.getElementById(`content-${id}`).classList.toggle('show'); }
+        
+        // --- Modal & Loaders (Same as before) ---
+        function openModal(title, htmlContent) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = htmlContent;
+            document.getElementById('modal').classList.add('open');
+        }
+        function closeModal() { document.getElementById('modal').classList.remove('open'); }
         function renderDetailRow(label, value, isHtml = false) {
             if (!value) return '';
             return `<div class="detail-row"><div class="detail-label">${label}</div><div class="${isHtml ? 'detail-html' : 'detail-val'}">${value}</div></div>`;
         }
 
-        // --- Loaders ---
-
+        // Loaders
         async function loadMedications(ptId, divId, wrapId) {
             try {
                 const data = await fhirClient.request(`MedicationRequest?patient=${ptId}&_sort=-date`);
@@ -297,7 +350,6 @@
                 (r) => `${renderDetailRow("時間", r.effectiveDateTime?.replace('T',' '))}${renderDetailRow("焦點", r.code?.text)}${renderDetailRow("內容", r.valueString, true)}`, "護理紀錄"
             );
         }
-
         async function loadVSComment(ptId, divId, wrapId) {
             try {
                 const data = await fhirClient.request(`Composition?patient=${ptId}&type=http://loinc.org|11506-3&_sort=-date`);
@@ -311,10 +363,8 @@
             const r = currentPatientResources['vs'][idx];
             openModal("Progress Note", `${renderDetailRow("時間", r.date?.replace('T',' '))}${renderDetailRow("內容", r.section?.[0]?.text?.div, true)}`);
         };
-
         async function loadLab(ptId, divId, wrapId) { await loadReport(ptId, divId, wrapId, 'LAB', 'lab'); }
         async function loadExam(ptId, divId, wrapId) { await loadReport(ptId, divId, wrapId, 'RAD', 'exam'); }
-        
         async function loadReport(ptId, divId, wrapId, cat, key) {
             try {
                 const data = await fhirClient.request(`DiagnosticReport?patient=${ptId}&category=${cat}&_sort=-date&_include=DiagnosticReport:result`);
@@ -331,30 +381,24 @@
             let obsHtml = item.obs.map(o => o ? `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;"><span>${o.code?.text}</span><b>${o.valueQuantity ? o.valueQuantity.value + ' ' + o.valueQuantity.unit : o.valueString || '-'}</b></div>` : '').join('');
             openModal("報告內容", `${renderDetailRow("項目", item.report.code?.text)}${renderDetailRow("結論", item.report.conclusion)}${renderDetailRow("數值", obsHtml, true)}`);
         };
-
         async function loadSurgery(ptId, divId, wrapId) {
             simpleLoad(ptId, divId, wrapId, 'Procedure?category=surgical&_sort=-date', 'surgery',
                 (r) => `<div class="data-row"><b>${r.code?.text}</b> <span>${r.performedDateTime?.split('T')[0]}</span></div>`,
                 (r) => `${renderDetailRow("術式", r.code?.text)}${renderDetailRow("日期", r.performedDateTime)}${renderDetailRow("發現", r.outcome?.text)}`, "手術紀錄"
             );
         }
-
         async function loadConsult(ptId, divId, wrapId) {
-            // FIX: Use _sort=-authored instead of _sort=-date for ServiceRequest
             simpleLoad(ptId, divId, wrapId, 'ServiceRequest?category=consult&_sort=-authored', 'consult',
                 (r) => `<div class="data-row"><b>${r.performerType?.text || 'Consult'}</b> <span>${r.authoredOn}</span></div>`,
                 (r) => `${renderDetailRow("科別", r.performerType?.text)}${renderDetailRow("被會醫師", r.performer?.[0]?.display)}${renderDetailRow("原因", r.reasonCode?.[0]?.text)}`, "會診紀錄"
             );
         }
-
         async function loadRecords(ptId, divId, wrapId) {
             simpleLoad(ptId, divId, wrapId, 'Composition?_sort=-date', 'records',
                 (r) => `<div class="data-row"><b>${r.type?.text}</b> <span>${r.date?.split('T')[0]}</span></div>`,
                 (r) => `${renderDetailRow("標題", r.type?.text)}${renderDetailRow("內容", r.section?.[0]?.text?.div, true)}`, "病歷紀錄"
             );
         }
-
-        // Generic Helper
         async function simpleLoad(ptId, divId, wrapId, query, key, listRender, detailRender, modalTitle) {
             try {
                 const url = query.startsWith('http') ? query : `${query}&patient=${ptId}`;
@@ -363,7 +407,6 @@
                 currentPatientResources[key] = list.map(e => e.resource);
                 const html = list.map((e, idx) => `<div class="data-card" onclick="showGenDetail('${key}', ${idx})">${listRender(e.resource)}</div>`).join('');
                 updateUI(wrapId, divId, html, list.length);
-                // Assign dynamic modal render function
                 window[`render_${key}`] = (r) => openModal(modalTitle, detailRender(r));
             } catch (e) { updateUI(wrapId, divId, e.message, 0, true); }
         }
